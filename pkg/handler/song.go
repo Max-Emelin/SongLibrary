@@ -16,14 +16,36 @@ func (h *Handler) createSong(c *gin.Context) {
 		return
 	}
 
-	id, err := h.services.Song.Create(input)
+	songId, err := h.services.Song.Create(input)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 
+	////////////////////////////////////////////
+
+	apiResponse, err := h.services.Song.FetchSongDetailsFromAPI(input.Group, input.SongName)
+	if err != nil {
+		newErrorResponse(c, http.StatusInternalServerError, "failed to fetch song details")
+		return
+	}
+
+	err = h.services.Song.UpdateSongWithAPIInfo(songId, *apiResponse)
+	if err != nil {
+		newErrorResponse(c, http.StatusInternalServerError, "failed to update song with API info")
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Song added successfully",
+		"song_id": songId,
+		"details": apiResponse,
+	})
+
+	///////////////////////////////////////////////////////////////
+
 	c.JSON(http.StatusOK, map[string]interface{}{
-		"id": id,
+		"id": songId,
 	})
 }
 
@@ -34,19 +56,14 @@ func (h *Handler) GetAllSongsWithFilter(c *gin.Context) {
 		return
 	}
 
-	limit, err := strconv.Atoi(c.DefaultQuery("limit", "10"))
-	if err != nil || limit <= 0 {
-		newErrorResponse(c, http.StatusBadRequest, "invalid limit parameter")
-		return
+	if filter.Limit == 0 {
+		filter.Limit = 10
+	}
+	if filter.Offset < 0 {
+		filter.Offset = 0
 	}
 
-	offset, err := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	if err != nil || offset < 0 {
-		newErrorResponse(c, http.StatusBadRequest, "invalid offset parameter")
-		return
-	}
-
-	songs, err := h.services.Song.GetAllSongsWithFilter(filter, limit, offset)
+	songs, err := h.services.Song.GetAllSongsWithFilter(filter)
 	if err != nil {
 		newErrorResponse(c, http.StatusInternalServerError, fmt.Sprintf("error fetching songs: %v", err))
 		return
@@ -66,13 +83,13 @@ func (h *Handler) getLyrics(c *gin.Context) {
 
 	limit, err := strconv.Atoi(c.DefaultQuery("limit", "10"))
 	if err != nil || limit <= 0 {
-		newErrorResponse(c, http.StatusBadRequest, "invalid limit parameter")
+		newErrorResponse(c, http.StatusBadRequest, "invalid limit param")
 		return
 	}
 
 	offset, err := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	if err != nil || offset < 0 {
-		newErrorResponse(c, http.StatusBadRequest, "invalid offset parameter")
+		newErrorResponse(c, http.StatusBadRequest, "invalid offset param")
 		return
 	}
 
@@ -101,6 +118,47 @@ func (h *Handler) getById(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, song)
+}
+
+func (h *Handler) deleteSong(c *gin.Context) {
+	songId, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		newErrorResponse(c, http.StatusBadRequest, "invalid id param")
+		return
+	}
+
+	err = h.services.Song.Delete(songId)
+	if err != nil {
+		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	c.JSON(http.StatusOK, statusResponse{
+		Status: "ok",
+	})
+}
+
+func (h *Handler) updateSong(c *gin.Context) {
+	songId, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		newErrorResponse(c, http.StatusBadRequest, "invalid id param")
+		return
+	}
+
+	var input model.UpdateSongInput
+	if err := c.BindJSON(&input); err != nil {
+		newErrorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if err := h.services.Song.Update(songId, input); err != nil {
+		newErrorResponse(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	c.JSON(http.StatusOK, statusResponse{
+		Status: "ok",
+	})
 }
 
 type getAllSongsResponse struct {

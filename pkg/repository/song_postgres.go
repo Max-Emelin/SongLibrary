@@ -20,8 +20,8 @@ func NewSongPostgres(db *sqlx.DB) *SongPostgres {
 func (r *SongPostgres) Create(song model.Song) (int, error) {
 	var id int
 
-	createSongQuery := fmt.Sprintf(`INSERT INTO %s (group, song_name) 
-									VALUES ($1, $2) 
+	createSongQuery := fmt.Sprintf(`INSERT INTO %s (group, song_name, release_date, link)  
+									VALUES ($1, $2, NULL, NULL) 
 									RETURNING id`,
 		songsTable)
 	err := r.db.QueryRow(createSongQuery, song.Group, song.SongName).Scan(&id)
@@ -44,7 +44,7 @@ func (r *SongPostgres) GetLyrics(songId int, limit, offset int) ([]model.Lyrics,
 	return lyrics, err
 }
 
-func (r *SongPostgres) GetAllSongsWithFilter(filter model.SongFilter, limit, offset int) ([]model.Song, error) {
+func (r *SongPostgres) GetAllSongsWithFilter(filter model.SongFilter) ([]model.Song, error) {
 	var songs []model.Song
 
 	getAllSongsWithFilterQuery := fmt.Sprintf(`SELECT *
@@ -54,7 +54,7 @@ func (r *SongPostgres) GetAllSongsWithFilter(filter model.SongFilter, limit, off
 											LIMIT $3 
 											OFFSET $4`,
 		songsTable)
-	err := r.db.Select(&songs, getAllSongsWithFilterQuery, filter.Group, filter.Song, limit, offset)
+	err := r.db.Select(&songs, getAllSongsWithFilterQuery, filter.Group, filter.Song, filter.Limit, filter.Offset)
 
 	return songs, err
 }
@@ -103,12 +103,53 @@ func (r *SongPostgres) Update(songId int, input model.UpdateSongInput) error {
 
 	query := fmt.Sprintf(`UPDATE %s  
 						SET %s 
-						WHERE id = ul.list_id`,
-		songsTable, setQuery)
+						WHERE id = $%d`,
+		songsTable, setQuery, argId)
+	args = append(args, songId)
 
 	logrus.Debugf("updated query: %s", query)
-	logrus.Debugf("args: %s", args)
+	logrus.Debugf("args: %v", args)
 
 	_, err := r.db.Exec(query, args...)
 	return err
+}
+
+func (r *SongPostgres) UpdateSongWithAPIInfo(updateSongApiData model.UpdateSongApiData) error {
+	tx, err := r.db.Begin()
+	if err != nil {
+		return nil
+	}
+
+	updateSongQuery := fmt.Sprintf(`UPDATE %s  
+							SET release_date = $1, link = $2  
+							WHERE id = $3`,
+		songsTable)
+	_, err = tx.Exec(updateSongQuery, updateSongApiData.ReleaseDate, updateSongApiData.Link, updateSongApiData.SongId)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	deleteLyricsQuery := fmt.Sprintf(`DELETE 
+									FROM %s 
+									WHERE song_id = $1`,
+		lyricsTable)
+	_, err = tx.Exec(deleteLyricsQuery, updateSongApiData.SongId)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	createLyricsQuery := fmt.Sprintf(`INSERT INTO %s (song_id, verse_number, text) 
+									VALUES ($1, $2, $3)`,
+		lyricsTable)
+	for i, verse := range updateSongApiData.Lyrics {
+		_, err = tx.Exec(createLyricsQuery, updateSongApiData.SongId, i+1, verse)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	return tx.Commit()
 }

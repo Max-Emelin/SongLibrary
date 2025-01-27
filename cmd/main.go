@@ -2,6 +2,7 @@ package main
 
 import (
 	songlibrary "SongLibrary"
+	"SongLibrary/pkg/apiClient"
 	"SongLibrary/pkg/handler"
 	"SongLibrary/pkg/repository"
 	"SongLibrary/pkg/service"
@@ -38,8 +39,9 @@ func main() {
 		logrus.Fatalf("failed to initialize db: %s", err.Error())
 	}
 
+	client := apiClient.NewClient("http://localhost:8080")
 	repos := repository.NewRepository(db)
-	service := service.NewService(repos)
+	service := service.NewService(repos, client)
 	handlers := handler.NewHandler(service)
 
 	srv := new(songlibrary.Server)
@@ -48,12 +50,12 @@ func main() {
 			logrus.Fatalf("error occured while running http server: %s", err.Error())
 		}
 	}()
-	logrus.Print("TodoApp Started")
+	logrus.Print("SongLibrary Started")
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT)
 	<-quit
-	logrus.Print("TodoApp Shutting Down")
+	logrus.Print("SongLibrary Shutting Down")
 
 	if err := srv.Shutdown(context.Background()); err != nil {
 		logrus.Errorf("error occured on server shutting down: %s", err.Error())

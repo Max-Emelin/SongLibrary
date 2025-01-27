@@ -24,10 +24,9 @@ func (h *Handler) InitRoutes() *gin.Engine {
 			songs.POST("/", h.createSong)
 			songs.GET("/", h.GetAllSongsWithFilter)
 			songs.GET("/:id", h.getById)
-			songs.GET("/:id/lyrics", getLyrics(services))
-			songs.DELETE("/:id", deleteSong(services))
-			songs.PUT("/:id", updateSong(services))
-
+			songs.GET("/:id/lyrics", h.getLyrics)
+			songs.DELETE("/:id", h.deleteSong)
+			songs.PUT("/:id", h.updateSong)
 		}
 	}
 

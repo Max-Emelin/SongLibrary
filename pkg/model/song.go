@@ -1,11 +1,16 @@
 package model
 
-import "errors"
+import (
+	"errors"
+	"time"
+)
 
 type Song struct {
-	ID       int    `json:"id" db:"id"`
-	Group    string `json:"group" binding:"required"`
-	SongName string `json:"song_name" binding:"required"`
+	ID          int        `json:"id" db:"id"`
+	Group       string     `json:"group" db:"group" binding:"required"`
+	SongName    string     `json:"song_name" db:"song_name" binding:"required"`
+	ReleaseDate *time.Time `json:"release_date" db:"release_date"`
+	Link        string     `json:"link" db:"link"`
 }
 
 type UpdateSongInput struct {
@@ -19,4 +24,11 @@ func (s *UpdateSongInput) Validate() error {
 	}
 
 	return nil
+}
+
+type UpdateSongApiData struct {
+	SongId      int
+	ReleaseDate string
+	Link        string
+	Lyrics      []string
 }

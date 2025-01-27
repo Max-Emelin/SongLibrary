@@ -1,16 +1,22 @@
 package service
 
 import (
+	"SongLibrary/pkg/apiClient"
 	"SongLibrary/pkg/model"
 	"SongLibrary/pkg/repository"
+	"strings"
 )
 
 type SongService struct {
-	repo repository.Song
+	repo   repository.Song
+	client *apiClient.Client
 }
 
-func NewSongService(repo repository.Song) *SongService {
-	return &SongService{repo: repo}
+func NewSongService(repo repository.Song, client *apiClient.Client) *SongService {
+	return &SongService{
+		repo:   repo,
+		client: client,
+	}
 }
 
 func (s *SongService) Create(song model.Song) (int, error) {
@@ -21,8 +27,8 @@ func (s *SongService) GetLyrics(songId int, limit, offset int) ([]model.Lyrics, 
 	return s.repo.GetLyrics(songId, limit, offset)
 }
 
-func (s *SongService) GetAllSongsWithFilter(filter model.SongFilter, limit, offset int) ([]model.Song, error) {
-	return s.repo.GetAllSongsWithFilter(filter, limit, offset)
+func (s *SongService) GetAllSongsWithFilter(filter model.SongFilter) ([]model.Song, error) {
+	return s.repo.GetAllSongsWithFilter(filter)
 }
 
 func (s *SongService) GetById(songId int) (model.Song, error) {
@@ -39,4 +45,21 @@ func (s *SongService) Update(songId int, input model.UpdateSongInput) error {
 	}
 
 	return s.repo.Update(songId, input)
+}
+
+func (s *SongService) FetchSongDetailsFromAPI(group, songName string) (*model.SongAPIResponse, error) {
+	return s.client.FetchSongDetails(group, songName)
+}
+
+func (s *SongService) UpdateSongWithAPIInfo(songId int, apiResponse model.SongAPIResponse) error {
+	return s.repo.UpdateSongWithAPIInfo(model.UpdateSongApiData{
+		SongId:      songId,
+		ReleaseDate: apiResponse.ReleaseDate,
+		Link:        apiResponse.Link,
+		Lyrics:      splitIntoVerses(apiResponse.Text),
+	})
+}
+
+func splitIntoVerses(lyrics string) []string {
+	return strings.Split(lyrics, "\n\n")
 }
