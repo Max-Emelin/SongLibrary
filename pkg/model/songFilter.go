@@ -1,8 +1,8 @@
 package model
 
 type SongFilter struct {
-	Group  string `json:"group"`
-	Song   string `json:"song"`
-	Limit  int    `json:"limit"`
-	Offset int    `json:"offset"`
+	Group  *string `json:"group" form:"group"`
+	Song   *string `json:"song" form:"song"`
+	Limit  int     `json:"limit" form:"limit"`
+	Offset int     `json:"offset" form:"offset"`
 }

@@ -10,7 +10,7 @@ type Song struct {
 	Group       string     `json:"group" db:"group" binding:"required"`
 	SongName    string     `json:"song_name" db:"song_name" binding:"required"`
 	ReleaseDate *time.Time `json:"release_date" db:"release_date"`
-	Link        string     `json:"link" db:"link"`
+	Link        *string    `json:"link" db:"link"`
 }
 
 type UpdateSongInput struct {

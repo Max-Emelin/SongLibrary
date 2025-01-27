@@ -24,23 +24,17 @@ func (h *Handler) createSong(c *gin.Context) {
 
 	////////////////////////////////////////////
 
-	apiResponse, err := h.services.Song.FetchSongDetailsFromAPI(input.Group, input.SongName)
-	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, "failed to fetch song details")
-		return
-	}
+	// apiResponse, err := h.services.Song.FetchSongDetailsFromAPI(input.Group, input.SongName)
+	// if err != nil {
+	// 	newErrorResponse(c, http.StatusInternalServerError, "failed to fetch song details")
+	// 	return
+	// }
 
-	err = h.services.Song.UpdateSongWithAPIInfo(songId, *apiResponse)
-	if err != nil {
-		newErrorResponse(c, http.StatusInternalServerError, "failed to update song with API info")
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Song added successfully",
-		"song_id": songId,
-		"details": apiResponse,
-	})
+	// err = h.services.Song.UpdateSongWithAPIInfo(songId, *apiResponse)
+	// if err != nil {
+	// 	newErrorResponse(c, http.StatusInternalServerError, "failed to update song with API info")
+	// 	return
+	// }
 
 	///////////////////////////////////////////////////////////////
 

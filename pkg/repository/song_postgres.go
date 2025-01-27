@@ -20,7 +20,7 @@ func NewSongPostgres(db *sqlx.DB) *SongPostgres {
 func (r *SongPostgres) Create(song model.Song) (int, error) {
 	var id int
 
-	createSongQuery := fmt.Sprintf(`INSERT INTO %s (group, song_name, release_date, link)  
+	createSongQuery := fmt.Sprintf(`INSERT INTO %s ("group", song_name, release_date, link)  
 									VALUES ($1, $2, NULL, NULL) 
 									RETURNING id`,
 		songsTable)
@@ -46,15 +46,35 @@ func (r *SongPostgres) GetLyrics(songId int, limit, offset int) ([]model.Lyrics,
 
 func (r *SongPostgres) GetAllSongsWithFilter(filter model.SongFilter) ([]model.Song, error) {
 	var songs []model.Song
+	queryParams := []interface{}{filter.Limit, filter.Offset}
+	filterSql := ""
+	argId := 3
+
+	if filter.Group != nil {
+		fmt.Printf("\ng\n")
+		filterSql += fmt.Sprintf(" AND \"group\" ILIKE $%d", argId)
+		argId++
+		queryParams = append(queryParams, *filter.Group)
+	}
+
+	if filter.Song != nil {
+		fmt.Printf("\ns\n")
+		filterSql += fmt.Sprintf(" AND song_name ILIKE $%d", argId)
+		argId++
+		queryParams = append(queryParams, *filter.Song)
+	}
 
 	getAllSongsWithFilterQuery := fmt.Sprintf(`SELECT *
-											FROM %s
-											WHERE ($1 IS NULL OR group ILIKE $1) 
-												AND ($2 IS NULL OR song_name ILIKE $2) 
-											LIMIT $3 
-											OFFSET $4`,
-		songsTable)
-	err := r.db.Select(&songs, getAllSongsWithFilterQuery, filter.Group, filter.Song, filter.Limit, filter.Offset)
+												FROM %s
+												WHERE (1=1) %s
+												LIMIT $1 
+												OFFSET $2`,
+		songsTable, filterSql)
+
+	logrus.Infof("Final Query: %s", getAllSongsWithFilterQuery)
+	logrus.Infof("Final Params: %v", queryParams)
+
+	err := r.db.Select(&songs, getAllSongsWithFilterQuery, queryParams...)
 
 	return songs, err
 }
@@ -88,7 +108,7 @@ func (r *SongPostgres) Update(songId int, input model.UpdateSongInput) error {
 	argId := 1
 
 	if input.Group != nil {
-		setValues = append(setValues, fmt.Sprintf("group=$%d", argId))
+		setValues = append(setValues, fmt.Sprintf(`"group"=$%d`, argId))
 		args = append(args, *input.Group)
 		argId++
 	}

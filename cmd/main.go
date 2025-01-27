@@ -7,11 +7,18 @@ import (
 	"SongLibrary/pkg/repository"
 	"SongLibrary/pkg/service"
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
@@ -27,17 +34,19 @@ func main() {
 		logrus.Fatalf("error loading env variables: %s", err.Error())
 	}
 
-	db, err := repository.NewPostgresDB(repository.Config{
-		Host:     viper.GetString("db.host"),
-		Port:     viper.GetString("db.port"),
-		Username: viper.GetString("db.username"),
-		DBName:   viper.GetString("db.dbname"),
-		SSLMode:  viper.GetString("db.sslmode"),
-		Password: os.Getenv("DB_PASSWORD"),
-	})
+	dbURL := "postgres://" + viper.GetString("db.username") + ":" + os.Getenv("DB_PASSWORD") + "@" +
+		viper.GetString("db.host") + ":" + viper.GetString("db.port") + "/" + viper.GetString("db.dbname") + "?sslmode=" + viper.GetString("db.sslmode")
+
+	db, err := sqlx.Open("postgres", dbURL)
 	if err != nil {
 		logrus.Fatalf("failed to initialize db: %s", err.Error())
 	}
+
+	if err := createDatabaseIfNotExists(dbURL, viper.GetString("db.dbname")); err != nil {
+		logrus.Fatalf("error creating database: %s", err.Error())
+	}
+
+	applyMigrations(dbURL)
 
 	client := apiClient.NewClient("http://localhost:8080")
 	repos := repository.NewRepository(db)
@@ -71,4 +80,37 @@ func initConfig() error {
 	viper.SetConfigName("config")
 
 	return viper.ReadInConfig()
+}
+
+func applyMigrations(dbURL string) {
+	m, err := migrate.New(
+		"file://schema",
+		dbURL,
+	)
+	if err != nil {
+		logrus.Fatalf("failed to create migrator: %s", err.Error())
+	}
+
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		logrus.Fatalf("failed to apply migrations: %s", err.Error())
+	}
+
+	logrus.Print("Migrations applied successfully")
+}
+
+func createDatabaseIfNotExists(dbURL, dbName string) error {
+	tempDBURL := dbURL[:strings.LastIndex(dbURL, "/")] + "?sslmode=disable"
+	tempDB, err := sqlx.Open("postgres", tempDBURL)
+	if err != nil {
+		return fmt.Errorf("failed to connect to database server: %w", err)
+	}
+	defer tempDB.Close()
+
+	_, err = tempDB.Exec(fmt.Sprintf("CREATE DATABASE %s", dbName))
+	if err != nil && !strings.Contains(err.Error(), "already exists") {
+		return fmt.Errorf("failed to create database: %w", err)
+	}
+
+	logrus.Printf("Database %s created or already exists", dbName)
+	return nil
 }
