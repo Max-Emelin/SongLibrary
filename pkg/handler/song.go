@@ -38,23 +38,19 @@ func (h *Handler) createSong(c *gin.Context) {
 
 	logrus.Info("createSong - song created successfully with ID:", songId)
 
-	////////////////////////////////////////////
+	apiResponse, err := h.services.Song.FetchSongDetailsFromAPI(input.Group, input.SongName)
+	if err != nil {
+		logrus.Error("createSong - failed to fetch song details", err)
+		newErrorResponse(c, http.StatusInternalServerError, "failed to fetch song details")
+		return
+	}
 
-	// apiResponse, err := h.services.Song.FetchSongDetailsFromAPI(input.Group, input.SongName)
-	// if err != nil {
-	// 	logrus.Error("createSong - failed to fetch song details", err)
-	// 	newErrorResponse(c, http.StatusInternalServerError, "failed to fetch song details")
-	// 	return
-	// }
-
-	// err = h.services.Song.UpdateSongWithAPIInfo(songId, *apiResponse)
-	// if err != nil {
-	// 	logrus.Error("createSong - failed to update song with API info", err)
-	// 	newErrorResponse(c, http.StatusInternalServerError, "failed to update song with API info")
-	// 	return
-	// }
-
-	///////////////////////////////////////////////////////////////
+	err = h.services.Song.UpdateSongWithAPIInfo(songId, *apiResponse)
+	if err != nil {
+		logrus.Error("createSong - failed to update song with API info", err)
+		newErrorResponse(c, http.StatusInternalServerError, "failed to update song with API info")
+		return
+	}
 
 	c.JSON(http.StatusOK, map[string]interface{}{"id": songId})
 }
