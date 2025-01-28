@@ -1,7 +1,6 @@
 package main
 
 import (
-	"SongLibrary/internal/configs"
 	"SongLibrary/internal/database"
 	"SongLibrary/internal/server"
 	"SongLibrary/pkg/apiClient"
@@ -18,19 +17,13 @@ import (
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
 )
 
 func main() {
 	logrus.SetFormatter(new(logrus.JSONFormatter))
 
-	logrus.Info("Initializing configuration...")
-	if err := configs.InitConfig(); err != nil {
-		logrus.Fatalf("Error initializing configs: %s", err.Error())
-	}
-	logrus.Info("Configuration initialized successfully.")
-
 	logrus.Info("Loading environment variables...")
+
 	if err := godotenv.Load(); err != nil {
 		logrus.Fatalf("Error loading env variables: %s", err.Error())
 	}
@@ -67,7 +60,7 @@ func main() {
 
 	logrus.Info("Starting the HTTP server...")
 	go func() {
-		if err := srv.Run(viper.GetString("port"), handlers.InitRoutes()); err != nil {
+		if err := srv.Run(os.Getenv("PORT"), handlers.InitRoutes()); err != nil {
 			logrus.Fatalf("Error occurred while running HTTP server: %s", err.Error())
 		}
 	}()
@@ -92,9 +85,10 @@ func main() {
 
 func getDatabaseURL() string {
 	logrus.Debug("Building database URL...")
-	url := "postgres://" + viper.GetString("db.username") + ":" + os.Getenv("DB_PASSWORD") + "@" +
-		viper.GetString("db.host") + ":" + viper.GetString("db.port") + "/" + viper.GetString("db.dbname") +
-		"?sslmode=" + viper.GetString("db.sslmode")
+	url := "postgres://" + os.Getenv("DB_USERNAME") + ":" + os.Getenv("DB_PASSWORD") + "@" +
+		os.Getenv("DB_HOST") + ":" + os.Getenv("DB_PORT") + "/" + os.Getenv("DB_NAME") +
+		"?sslmode=" + os.Getenv("DB_SSLMODE")
 	logrus.Debugf("Database URL: %s", url)
+
 	return url
 }
