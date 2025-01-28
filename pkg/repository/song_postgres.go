@@ -92,11 +92,9 @@ func (r *SongPostgres) GetById(songId int) (model.Song, error) {
 }
 
 func (r *SongPostgres) Delete(songId int) error {
-	deleteQuery := fmt.Sprintf(`DELETE FROM %s s
-								USING %s l
-								WHERE s.id = l.song_id
-									AND s.id = $1`,
-		songsTable, lyricsTable)
+	deleteQuery := fmt.Sprintf(`DELETE FROM %s 
+								WHERE id = $1`,
+		songsTable)
 	_, err := r.db.Exec(deleteQuery, songId)
 
 	return err

@@ -1,9 +1,11 @@
-package songlibrary
+package server
 
 import (
 	"context"
 	"net/http"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 type Server struct {
@@ -23,5 +25,6 @@ func (s *Server) Run(port string, handler http.Handler) error {
 }
 
 func (s *Server) Shutdown(ctx context.Context) error {
-	return s.httpServer.Shutdown(ctx)
+	logrus.Print("Shutting down server")
+	return nil
 }

@@ -21,21 +21,25 @@ func NewClient(baseURL string) *Client {
 }
 
 func (c *Client) FetchSongDetails(group, songName string) (*model.SongAPIResponse, error) {
+	if group == "" || songName == "" {
+		return nil, fmt.Errorf("group and songName must not be empty")
+	}
+
 	url := fmt.Sprintf("%s/info?group=%s&song=%s", c.BaseURL, group, songName)
 
 	resp, err := c.httpClient.Get(url)
 	if err != nil {
-		return nil, fmt.Errorf("failed to send request: %v", err)
+		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("received non-200 response: %s", resp.Status)
+		return nil, fmt.Errorf("unexpected response status: %s", resp.Status)
 	}
 
 	var apiResponse model.SongAPIResponse
 	if err := json.NewDecoder(resp.Body).Decode(&apiResponse); err != nil {
-		return nil, fmt.Errorf("failed to decode API response: %v", err)
+		return nil, fmt.Errorf("failed to decode API response: %w", err)
 	}
 
 	return &apiResponse, nil
