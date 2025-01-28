@@ -11,12 +11,14 @@ func InitConfig() error {
 	viper.AddConfigPath("internal/configs")
 	viper.SetConfigName("config")
 
+	logrus.Debug("Attempting to load the configuration...")
+
 	if err := viper.ReadInConfig(); err != nil {
 		dir, _ := os.Getwd()
-		logrus.Errorf("Current working directory: %s", dir)
+		logrus.Errorf("Error reading config file. Current working directory: %s", dir)
 		return err
 	}
 
-	logrus.Print("Configuration loaded successfully")
+	logrus.Info("Configuration loaded successfully")
 	return nil
 }

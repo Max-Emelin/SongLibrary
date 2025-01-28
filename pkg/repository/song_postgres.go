@@ -14,93 +14,96 @@ type SongPostgres struct {
 }
 
 func NewSongPostgres(db *sqlx.DB) *SongPostgres {
+	logrus.Debug("NewSongPostgres - initializing SongPostgres repository")
 	return &SongPostgres{db: db}
 }
 
 func (r *SongPostgres) Create(song model.Song) (int, error) {
-	var id int
+	logrus.Debugf("CreateSong - Group: %s, SongName: %s", song.Group, song.SongName)
 
+	var id int
 	createSongQuery := fmt.Sprintf(`INSERT INTO %s ("group", song_name, release_date, link)  
 									VALUES ($1, $2, NULL, NULL) 
-									RETURNING id`,
-		songsTable)
+									RETURNING id`, songsTable)
 	err := r.db.QueryRow(createSongQuery, song.Group, song.SongName).Scan(&id)
+	if err != nil {
+		logrus.Errorf("Error while creating song: %s", err)
+		return 0, err
+	}
 
-	return id, err
+	return id, nil
 }
 
 func (r *SongPostgres) GetLyrics(songId int, limit, offset int) ([]model.Lyrics, error) {
+	logrus.Debugf("GetLyrics - SongID: %d, Limit: %d, Offset: %d", songId, limit, offset)
+
 	var lyrics []model.Lyrics
-
-	getLyricsQuery := fmt.Sprintf(`SELECT * 
-								FROM %s 
-								WHERE song_id = $1 
-								ORDER BY verse_number 
-								LIMIT $2 
-								OFFSET $3`,
-		lyricsTable)
+	getLyricsQuery := fmt.Sprintf(`SELECT * FROM %s WHERE song_id = $1 ORDER BY verse_number LIMIT $2 OFFSET $3`, lyricsTable)
 	err := r.db.Select(&lyrics, getLyricsQuery, songId, limit, offset)
-
+	if err != nil {
+		logrus.Errorf("Error fetching lyrics for song %d: %s", songId, err)
+	}
 	return lyrics, err
 }
 
 func (r *SongPostgres) GetAllSongsWithFilter(filter model.SongFilter) ([]model.Song, error) {
+	logrus.Debugf("GetAllSongsWithFilter - Filter: %+v", filter)
+
 	var songs []model.Song
 	queryParams := []interface{}{filter.Limit, filter.Offset}
 	filterSql := ""
 	argId := 3
 
 	if filter.Group != nil {
-		fmt.Printf("\ng\n")
 		filterSql += fmt.Sprintf(" AND \"group\" ILIKE $%d", argId)
 		argId++
 		queryParams = append(queryParams, *filter.Group)
 	}
 
 	if filter.Song != nil {
-		fmt.Printf("\ns\n")
 		filterSql += fmt.Sprintf(" AND song_name ILIKE $%d", argId)
 		argId++
 		queryParams = append(queryParams, *filter.Song)
 	}
 
-	getAllSongsWithFilterQuery := fmt.Sprintf(`SELECT *
-												FROM %s
-												WHERE (1=1) %s
-												LIMIT $1 
-												OFFSET $2`,
-		songsTable, filterSql)
-
-	logrus.Infof("Final Query: %s", getAllSongsWithFilterQuery)
-	logrus.Infof("Final Params: %v", queryParams)
+	getAllSongsWithFilterQuery := fmt.Sprintf(`SELECT * FROM %s WHERE (1=1) %s LIMIT $1 OFFSET $2`, songsTable, filterSql)
 
 	err := r.db.Select(&songs, getAllSongsWithFilterQuery, queryParams...)
+	if err != nil {
+		logrus.Errorf("Error fetching songs with filter: %v", err)
+	}
 
 	return songs, err
 }
 
 func (r *SongPostgres) GetById(songId int) (model.Song, error) {
-	var song model.Song
+	logrus.Debugf("GetById - SongID: %d", songId)
 
-	getByIdQuery := fmt.Sprintf(`SELECT * 
-						FROM  %s 
-						WHERE id = $1`,
-		songsTable)
+	var song model.Song
+	getByIdQuery := fmt.Sprintf(`SELECT * FROM %s WHERE id = $1`, songsTable)
 	err := r.db.Get(&song, getByIdQuery, songId)
 
+	if err != nil {
+		logrus.Errorf("Error fetching song with ID %d: %s", songId, err)
+	}
 	return song, err
 }
 
 func (r *SongPostgres) Delete(songId int) error {
-	deleteQuery := fmt.Sprintf(`DELETE FROM %s 
-								WHERE id = $1`,
-		songsTable)
+	logrus.Debugf("DeleteSong - SongID: %d", songId)
+
+	deleteQuery := fmt.Sprintf(`DELETE FROM %s WHERE id = $1`, songsTable)
 	_, err := r.db.Exec(deleteQuery, songId)
+	if err != nil {
+		logrus.Errorf("Error deleting song with ID %d: %s", songId, err)
+	}
 
 	return err
 }
 
 func (r *SongPostgres) Update(songId int, input model.UpdateSongInput) error {
+	logrus.Debugf("UpdateSong - SongID: %d, Input: %+v", songId, input)
+
 	setValues := make([]string, 0)
 	args := make([]interface{}, 0)
 	argId := 1
@@ -118,56 +121,57 @@ func (r *SongPostgres) Update(songId int, input model.UpdateSongInput) error {
 	}
 
 	setQuery := strings.Join(setValues, ", ")
-
-	query := fmt.Sprintf(`UPDATE %s  
-						SET %s 
-						WHERE id = $%d`,
-		songsTable, setQuery, argId)
+	query := fmt.Sprintf(`UPDATE %s SET %s WHERE id = $%d`, songsTable, setQuery, argId)
 	args = append(args, songId)
 
-	logrus.Debugf("updated query: %s", query)
-	logrus.Debugf("args: %v", args)
+	logrus.Debugf("Update query: %s", query)
+	logrus.Debugf("Args: %v", args)
 
 	_, err := r.db.Exec(query, args...)
+	if err != nil {
+		logrus.Errorf("Error updating song with ID %d: %s", songId, err)
+	}
 	return err
 }
 
 func (r *SongPostgres) UpdateSongWithAPIInfo(updateSongApiData model.UpdateSongApiData) error {
+	logrus.Debugf("UpdateSongWithAPIInfo - SongID: %d", updateSongApiData.SongId)
+
 	tx, err := r.db.Begin()
 	if err != nil {
-		return nil
+		logrus.Errorf("Error starting transaction: %s", err)
+		return err
 	}
 
-	updateSongQuery := fmt.Sprintf(`UPDATE %s  
-							SET release_date = $1, link = $2  
-							WHERE id = $3`,
-		songsTable)
+	updateSongQuery := fmt.Sprintf(`UPDATE %s SET release_date = $1, link = $2 WHERE id = $3`, songsTable)
 	_, err = tx.Exec(updateSongQuery, updateSongApiData.ReleaseDate, updateSongApiData.Link, updateSongApiData.SongId)
 	if err != nil {
 		tx.Rollback()
+		logrus.Errorf("Error updating song with ID %d: %s", updateSongApiData.SongId, err)
 		return err
 	}
 
-	deleteLyricsQuery := fmt.Sprintf(`DELETE 
-									FROM %s 
-									WHERE song_id = $1`,
-		lyricsTable)
+	deleteLyricsQuery := fmt.Sprintf(`DELETE FROM %s WHERE song_id = $1`, lyricsTable)
 	_, err = tx.Exec(deleteLyricsQuery, updateSongApiData.SongId)
 	if err != nil {
 		tx.Rollback()
+		logrus.Errorf("Error deleting lyrics for song with ID %d: %s", updateSongApiData.SongId, err)
 		return err
 	}
 
-	createLyricsQuery := fmt.Sprintf(`INSERT INTO %s (song_id, verse_number, text) 
-									VALUES ($1, $2, $3)`,
-		lyricsTable)
+	createLyricsQuery := fmt.Sprintf(`INSERT INTO %s (song_id, verse_number, text) VALUES ($1, $2, $3)`, lyricsTable)
 	for i, verse := range updateSongApiData.Lyrics {
 		_, err = tx.Exec(createLyricsQuery, updateSongApiData.SongId, i+1, verse)
 		if err != nil {
 			tx.Rollback()
+			logrus.Errorf("Error inserting lyrics for song with ID %d: %s", updateSongApiData.SongId, err)
 			return err
 		}
 	}
 
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		logrus.Errorf("Error committing transaction for song with ID %d: %s", updateSongApiData.SongId, err)
+	}
+
+	return err
 }

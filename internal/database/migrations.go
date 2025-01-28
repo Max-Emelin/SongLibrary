@@ -8,14 +8,18 @@ import (
 )
 
 func ApplyMigrations(dbURL string) {
-	m, err := migrate.New("file://internal//database//schema", dbURL)
+	logrus.Debug("Starting migration process...")
+
+	m, err := migrate.New("file://internal/database/schema", dbURL)
 	if err != nil {
-		logrus.Fatalf("failed to create migrator: %s", err.Error())
+		logrus.Errorf("Failed to create migrator: %v", err)
+		logrus.Fatal(err)
 	}
+	logrus.Debug("Migrator created successfully.")
 
+	logrus.Debug("Applying migrations...")
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-		logrus.Fatalf("failed to apply migrations: %s", err.Error())
+		logrus.Errorf("Failed to apply migrations: %v", err)
+		logrus.Fatal(err)
 	}
-
-	logrus.Print("Migrations applied successfully")
 }

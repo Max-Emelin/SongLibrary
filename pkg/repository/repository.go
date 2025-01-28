@@ -4,6 +4,7 @@ import (
 	"SongLibrary/pkg/model"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/sirupsen/logrus"
 )
 
 type Song interface {
@@ -21,7 +22,11 @@ type Repository struct {
 }
 
 func NewRepository(db *sqlx.DB) *Repository {
-	return &Repository{
+	logrus.Debug("NewRepository - initializing repository")
+	repo := &Repository{
 		Song: NewSongPostgres(db),
 	}
+	logrus.Debug("NewRepository - repository initialized successfully")
+
+	return repo
 }

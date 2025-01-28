@@ -4,6 +4,8 @@ import (
 	"SongLibrary/pkg/apiClient"
 	"SongLibrary/pkg/model"
 	"SongLibrary/pkg/repository"
+
+	"github.com/sirupsen/logrus"
 )
 
 type Song interface {
@@ -22,7 +24,11 @@ type Service struct {
 }
 
 func NewService(repos *repository.Repository, client *apiClient.Client) *Service {
-	return &Service{
+	logrus.Debug("NewService - initializing service")
+	service := &Service{
 		Song: NewSongService(repos.Song, client),
 	}
+	logrus.Debug("NewService - service initialized successfully")
+
+	return service
 }

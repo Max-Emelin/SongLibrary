@@ -24,56 +24,77 @@ import (
 func main() {
 	logrus.SetFormatter(new(logrus.JSONFormatter))
 
+	logrus.Info("Initializing configuration...")
 	if err := configs.InitConfig(); err != nil {
-		logrus.Fatalf("error initializing configs: %s", err.Error())
+		logrus.Fatalf("Error initializing configs: %s", err.Error())
 	}
+	logrus.Info("Configuration initialized successfully.")
 
+	logrus.Info("Loading environment variables...")
 	if err := godotenv.Load(); err != nil {
-		logrus.Fatalf("error loading env variables: %s", err.Error())
+		logrus.Fatalf("Error loading env variables: %s", err.Error())
 	}
+	logrus.Info("Environment variables loaded.")
 
 	dbURL := getDatabaseURL()
 
+	logrus.Info("Connecting to the database...")
 	dbConn, err := database.ConnectDB(dbURL)
 	if err != nil {
-		logrus.Fatalf("failed to connect to DB: %s", err.Error())
+		logrus.Fatalf("Failed to connect to DB: %s", err.Error())
 	}
+	logrus.Info("Connected to the database successfully.")
 
+	logrus.Info("Checking if the database exists...")
 	if err := database.CreateDatabaseIfNotExists(dbURL, "song_library"); err != nil {
-		logrus.Fatalf("error creating database: %s", err.Error())
+		logrus.Fatalf("Error creating database: %s", err.Error())
 	}
+	logrus.Info("Database created or already exists.")
 
+	logrus.Info("Applying migrations...")
 	database.ApplyMigrations(dbURL)
+	logrus.Info("Migrations applied successfully.")
 
+	logrus.Info("Initializing API client...")
 	client := apiClient.NewClient("http://localhost:8080")
+	logrus.Info("API client initialized.")
+
 	repos := repository.NewRepository(dbConn)
 	service := service.NewService(repos, client)
 	handlers := handler.NewHandler(service)
 
 	srv := new(server.Server)
+
+	logrus.Info("Starting the HTTP server...")
 	go func() {
 		if err := srv.Run(viper.GetString("port"), handlers.InitRoutes()); err != nil {
-			logrus.Fatalf("error occured while running http server: %s", err.Error())
+			logrus.Fatalf("Error occurred while running HTTP server: %s", err.Error())
 		}
 	}()
-	logrus.Print("SongLibrary Started")
+	logrus.Info("HTTP server started.")
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGTERM, syscall.SIGINT)
 	<-quit
-	logrus.Print("SongLibrary Shutting Down")
+	logrus.Info("SongLibrary is shutting down...")
 
+	logrus.Info("Shutting down the server...")
 	if err := srv.Shutdown(context.Background()); err != nil {
-		logrus.Errorf("error occured on server shutting down: %s", err.Error())
+		logrus.Errorf("Error occurred on server shutdown: %s", err.Error())
 	}
 
+	logrus.Info("Closing the database connection...")
 	if err := dbConn.Close(); err != nil {
-		logrus.Errorf("error occured on db connection close: %s", err.Error())
+		logrus.Errorf("Error occurred while closing the DB connection: %s", err.Error())
 	}
+	logrus.Info("Database connection closed.")
 }
 
 func getDatabaseURL() string {
-	return "postgres://" + viper.GetString("db.username") + ":" + os.Getenv("DB_PASSWORD") + "@" +
+	logrus.Debug("Building database URL...")
+	url := "postgres://" + viper.GetString("db.username") + ":" + os.Getenv("DB_PASSWORD") + "@" +
 		viper.GetString("db.host") + ":" + viper.GetString("db.port") + "/" + viper.GetString("db.dbname") +
 		"?sslmode=" + viper.GetString("db.sslmode")
+	logrus.Debugf("Database URL: %s", url)
+	return url
 }

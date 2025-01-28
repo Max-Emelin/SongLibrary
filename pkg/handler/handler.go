@@ -4,6 +4,7 @@ import (
 	"SongLibrary/pkg/service"
 
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 )
 
 type Handler struct {
@@ -11,10 +12,13 @@ type Handler struct {
 }
 
 func NewHandler(services *service.Service) *Handler {
+	logrus.Debug("Initializing new handler with provided service")
 	return &Handler{services: services}
 }
 
 func (h *Handler) InitRoutes() *gin.Engine {
+	logrus.Debug("Initializing routes")
+
 	router := gin.New()
 
 	api := router.Group("/api")
@@ -30,5 +34,6 @@ func (h *Handler) InitRoutes() *gin.Engine {
 		}
 	}
 
+	logrus.Info("Routes initialized successfully")
 	return router
 }
