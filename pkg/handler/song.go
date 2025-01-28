@@ -10,6 +10,15 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// @Summary CreateSong
+// @Tags songs
+// @Description create song
+// @ID create-song
+// @Accept json
+// @Produce json
+// @Param input body model.UpdateSongInput true "song info"
+// @Success 200 {integer} integer 1
+// @Router /api/songs [post]
 func (h *Handler) createSong(c *gin.Context) {
 	logrus.Debug("createSong - binding input to model")
 	var input model.Song
@@ -50,6 +59,18 @@ func (h *Handler) createSong(c *gin.Context) {
 	c.JSON(http.StatusOK, map[string]interface{}{"id": songId})
 }
 
+// @Summary GetAllSongsWithFilter
+// @Tags songs
+// @Description get songs with filter
+// @ID get-songs-with-filter
+// @Accept json
+// @Produce json
+// @Param group query string false "Filter by group"
+// @Param song query string false "Filter by song name"
+// @Param limit query int true "Limit of records"
+// @Param offset query int true "Records offset"
+// @Success 200 {array} model.Song
+// @Router /api/songs [get]
 func (h *Handler) GetAllSongsWithFilter(c *gin.Context) {
 	logrus.Debug("GetAllSongsWithFilter - binding filter from query parameters")
 	var filter model.SongFilter
@@ -78,6 +99,17 @@ func (h *Handler) GetAllSongsWithFilter(c *gin.Context) {
 	c.JSON(http.StatusOK, getAllSongsResponse{Data: songs})
 }
 
+// @Summary GetSongLyrics
+// @Tags songs
+// @Description get song lyrics
+// @ID get-song-lyrics
+// @Accept json
+// @Produce json
+// @Param id path string true "Song id"
+// @Param limit query int true "Limit of records"
+// @Param offset query int true "Records offset"
+// @Success 200 {array} model.Lyrics
+// @Router /api/songs/{id}/lyrics [get]
 func (h *Handler) getLyrics(c *gin.Context) {
 	logrus.Debug("getLyrics - extracting songId and parameters from request")
 	songId, err := strconv.Atoi(c.Param("id"))
@@ -113,6 +145,15 @@ func (h *Handler) getLyrics(c *gin.Context) {
 	c.JSON(http.StatusOK, getLyricsResponse{Data: lyrics})
 }
 
+// @Summary GetSongById
+// @Tags songs
+// @Description get song by id
+// @ID get-song-by-id
+// @Accept json
+// @Produce json
+// @Param id path string true "Song id"
+// @Success 200 {object} model.Song
+// @Router /api/songs/{id} [get]
 func (h *Handler) getById(c *gin.Context) {
 	logrus.Debug("getById - extracting songId from request")
 	listId, err := strconv.Atoi(c.Param("id"))
@@ -134,6 +175,15 @@ func (h *Handler) getById(c *gin.Context) {
 	c.JSON(http.StatusOK, song)
 }
 
+// @Summary DeleteSong
+// @Tags songs
+// @Description delete song by id
+// @ID delete-song-by-id
+// @Accept json
+// @Produce json
+// @Param id path string true "Song id"
+// @Success 200 {object} model.Song
+// @Router /api/songs/{id} [delete]
 func (h *Handler) deleteSong(c *gin.Context) {
 	logrus.Debug("deleteSong - extracting songId from request")
 	songId, err := strconv.Atoi(c.Param("id"))
@@ -155,6 +205,16 @@ func (h *Handler) deleteSong(c *gin.Context) {
 	c.JSON(http.StatusOK, statusResponse{Status: "ok"})
 }
 
+// @Summary UpdateSong
+// @Tags songs
+// @Description update song
+// @ID update-song
+// @Accept json
+// @Produce json
+// @Param id path string true "Song id"
+// @Param input body model.UpdateSongInput true "song info"
+// @Success 200 {integer} integer 1
+// @Router /api/songs/{id} [put]
 func (h *Handler) updateSong(c *gin.Context) {
 	logrus.Debug("updateSong - extracting songId from request")
 	songId, err := strconv.Atoi(c.Param("id"))

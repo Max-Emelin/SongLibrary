@@ -12,6 +12,8 @@ import (
 	"os/signal"
 	"syscall"
 
+	_ "SongLibrary/docs"
+
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/joho/godotenv"
@@ -19,6 +21,12 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// @title SongLibrary API
+// @version 1.0
+// @description API Server for SongLibrary Application
+
+// @host localhost:8000
+// @Basepath /
 func main() {
 	logrus.SetFormatter(new(logrus.JSONFormatter))
 
